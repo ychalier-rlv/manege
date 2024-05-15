@@ -251,23 +251,28 @@ namespace manege {
                     //pass
                 } else if (!wasColliding && isColliding) {
                     collisionSet.add(a, b, ingameTime);
-                    onCollisionStart(a, b);
+                    control.inBackground(() => {
+                        onCollisionStart(a, b);
+                    });
                 } else if (wasColliding && !isColliding) {
                     collisionSet.remove(a, b);
-                    onCollisionEnd(a, b);
+                    control.inBackground(() => {
+                        onCollisionEnd(a, b);
+                    });
                 } else if (wasColliding && isColliding) {
                     let collisionTime = collisionSet.get(a, b);
                     if (collisionTime >= 0 && (ingameTime - collisionTime >= LONG_COLLISION_DURATION)) {
                         collisionSet.set(a, b, -2);
-                        onLongCollision(a, b);
+                        control.inBackground(() => {
+                            onLongCollision(a, b);
+                        });
                     }
                 }
             }
         }
     }
 
-    //% block="créer un minuteur dans $duration ms"
-    export function setTimeout(duration: number, callback: () => void) {
+    function setTimeout(duration: number, callback: () => void): number {
         timeouts.push({
             id: timeoutCounter,
             endTime: ingameTime + duration,
@@ -275,6 +280,11 @@ namespace manege {
         });
         timeoutCounter++;
         return timeouts[timeouts.length - 1].id;
+    }
+
+    //% block="créer un minuteur dans $duration ms"
+    export function setTimeoutStatement(duration: number, callback: () => void) {
+        setTimeout(duration, callback);
     }
 
     function getTimeoutIndex(timeoutId: number): number {
@@ -358,8 +368,8 @@ namespace manege {
     }
 
     //% block="supprimer l'entité $entity"
-    //% block.shadow=variables_get
-    function removeEntity(entity: Entity): void {
+    //% entity.shadow=variables_get
+    export function removeEntity(entity: Entity): void {
         let i = getEntityIndex(entity.id);
         if (i >= 0) {
             entities.splice(i, 1);

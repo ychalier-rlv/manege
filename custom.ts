@@ -457,4 +457,69 @@ namespace manege {
         return (a1.id == b1.id && a2.id == b2.id) || (a1.id == b2.id && a2.id == b1.id);
     }
 
+    //% block="choisir une position libre au hasard || de taille $size"
+    //% size.defl=1
+    export function getRandomFreePosition(size: number = 1): number {
+        const margin = size / 2;
+        const intervals: number[][] = [[0, size]];
+        for (const entity of entities) {
+            const start = entity.position - entity.width / 2 - margin;
+            const end = entity.position + entity.width / 2 + margin;
+            let parts: number[][] = [];
+            if (start < 0) {
+                parts = [[0, end], [start + size, size]];
+            } else if (end > size) {
+                parts = [[0, end - size], [start, size]];
+            } else {
+                parts = [[start, end]];
+            }
+            for (const part of parts) {
+                let i = 0;
+                while (i < intervals.length) {
+                    const interval = intervals[i];
+                    if (part[0] <= interval[0] && part[1] >= interval[0] && part[1] <= interval[1]) {
+                        intervals[i][0] = part[1];
+                    } else if (part[0] >= interval[0] && part[1] <= interval[1]) {
+                        intervals.insertAt(i, [interval[0], interval[1]]);
+                        intervals[i][1] = part[0];
+                        i++;
+                        intervals[i][0] = part[1];
+                    } else if (part[0] >= interval[0] && part[0] <= interval[1] && part[1] >= interval[1]) {
+                        intervals[i][1] = part[0];
+                    } else {
+                        //pass
+                    }
+                    i++;
+                }
+            }
+        }
+        const widths = [];
+        let totalWidth = 0;
+        let j = 0;
+        while (j < intervals.length) {
+            let width = intervals[j][1] - intervals[j][0];
+            if (width > 0) {
+                widths.push(width);
+                totalWidth += width;
+                j++;
+            } else {
+                intervals.splice(j, 1);
+            }
+        }
+        if (totalWidth == 0) {
+            return 0;
+        }
+        let randomNumber = Math.random() * totalWidth;
+        let upperBound = 0;
+        for (let k = 0; k < intervals.length; k++) {
+            if (randomNumber <= upperBound + widths[k]) {
+                const x = (randomNumber - upperBound) / widths[k];
+                return (1 - x) * intervals[k][0] + x * intervals[k][1];
+                break;
+            }
+            upperBound += widths[k];
+        }
+        return 0;
+    }
+
 }

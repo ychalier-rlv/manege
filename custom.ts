@@ -482,10 +482,10 @@ namespace manege {
         return (a1.id == b1.id && a2.id == b2.id) || (a1.id == b2.id && a2.id == b1.id);
     }
 
-    //% block="choisir une position libre au hasard || de taille $size"
-    //% size.defl=1
-    export function getRandomFreePosition(size: number = 1): number {
-        const margin = size / 2;
+    //% block="choisir une position libre au hasard || de taille $spotSize"
+    //% spotSize.defl=1
+    export function getRandomFreePosition(spotSize: number = 1): number {
+        const margin = spotSize / 2;
         const intervals: number[][] = [[0, size]];
         for (const entity of entities) {
             const start = entity.position - entity.width / 2 - margin;

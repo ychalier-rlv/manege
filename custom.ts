@@ -17,6 +17,8 @@ namespace manege {
         position: number
         //% blockCombine block="taille"
         width: number
+        //% blockCombine block="opacité"
+        opacity: number
         //% blockCombine block="hauteur"
         zindex: number
         boundsMode: number
@@ -28,6 +30,7 @@ namespace manege {
             this.speed = 0;
             this.acceleration = 0;
             this.width = 1;
+            this.opacity = 1;
             this.zindex = 0;
             this.boundsMode = BoundsMode.Wrap;
         }
@@ -186,7 +189,8 @@ namespace manege {
         duration: number,
         amplitude: number,
         startPosition: number,
-        startWidth: number
+        startWidth: number,
+        startOpacity: number
     }
 
     let size: number = 30
@@ -419,11 +423,11 @@ namespace manege {
                 } else if (i >= size) {
                     j = i - size;
                 }
-                let alpha = 1;
+                let alpha = entity.opacity;
                 if (i == start) {
-                    alpha = 1 - (entity.position - 0.5 * entity.width - start);
+                    alpha *= 1 - (entity.position - 0.5 * entity.width - start);
                 } else if (i == end) {
-                    alpha = entity.position + 0.5 * entity.width - end;
+                    alpha *= entity.position + 0.5 * entity.width - end;
                 }
                 if (alpha == 1) {
                     rgbs[j] = entity.color;
@@ -555,10 +559,14 @@ namespace manege {
                 case AnimationType.Grow:
                     animation.entity.width = animation.startWidth + animation.amplitude * (1 - Math.cos(4 * Math.PI * progress)) / 2;
                     break;
+                case AnimationType.Blink:
+                    animation.entity.opacity = animation.startOpacity * (Math.cos(4 * Math.PI * progress) + 1) / 2;
+                    break;
             }
             if (progress >= 1) {
                 animation.entity.position = animation.startPosition;
                 animation.entity.width = animation.startWidth;
+                animation.entity.opacity = animation.startOpacity;
                 animations.splice(i, 1);
             } else {
                 i++;
@@ -579,7 +587,8 @@ namespace manege {
             duration: duration,
             amplitude: amplitude,
             startPosition: entity.position,
-            startWidth: entity.width
+            startWidth: entity.width,
+            startOpacity: entity.opacity,
         });
     }
 

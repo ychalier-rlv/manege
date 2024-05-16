@@ -170,6 +170,25 @@ namespace manege {
         callback: () => void;
     }
 
+    export enum AnimationType {
+        //% block="gigoter"
+        Wiggle,
+        //% block="grossir"
+        Grow,
+        //% block="clignoter"
+        Blink
+    }
+
+    type Animation = {
+        entity: Entity,
+        animationType: AnimationType,
+        timeStart: number,
+        duration: number,
+        amplitude: number,
+        startPosition: number,
+        startWidth: number
+    }
+
     let size: number = 30
     let running: boolean = true
     let ingameTime: number = 0
@@ -185,6 +204,7 @@ namespace manege {
     let onLongCollision: (a: Entity, b: Entity) => void = (a: Entity, b: Entity) => { }
     let timeouts: Timeout[] = []
     let timeoutCounter: number = 0
+    let animations: Animation[] = []
 
     //% block="démarrer le jeu"
     export function startGame() {
@@ -329,8 +349,9 @@ namespace manege {
         return seconds;
     }
 
-    //% block="mettre à jour les collisions"
+    //% block="mettre à jour les entités"
     export function updateEntities() {
+        updateAnimations();
         for (const entity of entities) {
             switch (boundsMode) {
                 case BoundsMode.Clip:
@@ -520,6 +541,46 @@ namespace manege {
             upperBound += widths[k];
         }
         return 0;
+    }
+
+    function updateAnimations() {
+        let i = 0;
+        while (i < animations.length) {
+            const animation = animations[i];
+            const progress = Math.min(1, (ingameTime - animation.timeStart) / animation.duration);
+            switch (animation.animationType) {
+                case AnimationType.Wiggle:
+                    animation.entity.position = animation.startPosition + animation.amplitude * Math.sin(4 * Math.PI * progress);
+                    break;
+                case AnimationType.Grow:
+                    animation.entity.width = animation.startWidth + animation.amplitude * (1 - Math.cos(4 * Math.PI * progress)) / 2;
+                    break;
+            }
+            if (progress >= 1) {
+                animation.entity.position = animation.startPosition;
+                animation.entity.width = animation.startWidth;
+                animations.splice(i, 1);
+            } else {
+                i++;
+            }
+        }
+    }
+
+    //% block="faire $animationType l'entité $entity pendant $duration || d'amplitude $amplitude"
+    //% expandableArgumentMode="toggle"
+    //% animationType.defl=AnimationType.Wiggle
+    //% amplitude.defl=1
+    //% duration.defl=1000
+    export function animateEntity(entity: Entity, animationType: AnimationType = AnimationType.Grow, duration: number = 1000, amplitude: number = 1) {
+        animations.push({
+            entity: entity,
+            animationType: animationType,
+            timeStart: ingameTime,
+            duration: duration,
+            amplitude: amplitude,
+            startPosition: entity.position,
+            startWidth: entity.width
+        });
     }
 
 }

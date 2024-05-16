@@ -357,6 +357,7 @@ namespace manege {
     export function updateEntities() {
         updateAnimations();
         for (const entity of entities) {
+            entity.opacity = Math.max(0, Math.min(1, entity.opacity));
             switch (boundsMode) {
                 case BoundsMode.Clip:
                     entity.position = Math.max(0, Math.min(size - 1, entity.position));

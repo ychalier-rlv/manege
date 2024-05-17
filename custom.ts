@@ -2,8 +2,6 @@ namespace manege {
 
     enum BoundsMode { Clip, Wrap };
 
-    const LONG_COLLISION_DURATION = 1000;
-
     export class Entity {
 
         id: number
@@ -209,6 +207,12 @@ namespace manege {
     let timeouts: Timeout[] = []
     let timeoutCounter: number = 0
     let animations: Animation[] = []
+    let longCollisionDuration = 1000;
+
+    //% block="régler la durée d'une collision longue à (ms) $duration"
+    export function setLongCollisionDuration(duration: number) {
+        longCollisionDuration = duration;
+    }
 
     //% block="démarrer le jeu"
     export function startGame() {
@@ -285,7 +289,7 @@ namespace manege {
                     });
                 } else if (wasColliding && isColliding) {
                     let collisionTime = collisionSet.get(a, b);
-                    if (collisionTime >= 0 && (ingameTime - collisionTime >= LONG_COLLISION_DURATION)) {
+                    if (collisionTime >= 0 && (ingameTime - collisionTime >= longCollisionDuration)) {
                         collisionSet.set(a, b, -2);
                         control.inBackground(() => {
                             onLongCollision(a, b);
@@ -553,6 +557,10 @@ namespace manege {
         while (i < animations.length) {
             const animation = animations[i];
             const progress = Math.min(1, (ingameTime - animation.timeStart) / animation.duration);
+            if (progress < 0) {
+                i++;
+                continue;
+            }
             switch (animation.animationType) {
                 case AnimationType.Wiggle:
                     animation.entity.position = animation.startPosition + animation.amplitude * Math.sin(4 * Math.PI * progress);
@@ -575,16 +583,16 @@ namespace manege {
         }
     }
 
-    //% block="faire $animationType l'entité $entity pendant $duration || d'amplitude $amplitude"
+    //% block="faire $animationType l'entité $entity pendant $duration || d'amplitude $amplitude et après un délais de (ms) $delay"
     //% expandableArgumentMode="toggle"
     //% animationType.defl=AnimationType.Wiggle
     //% amplitude.defl=1
     //% duration.defl=1000
-    export function animateEntity(entity: Entity, animationType: AnimationType = AnimationType.Grow, duration: number = 1000, amplitude: number = 1) {
+    export function animateEntity(entity: Entity, animationType: AnimationType = AnimationType.Grow, duration: number = 1000, amplitude: number = 1, delay: number = 0) {
         animations.push({
             entity: entity,
             animationType: animationType,
-            timeStart: ingameTime,
+            timeStart: ingameTime + delay,
             duration: duration,
             amplitude: amplitude,
             startPosition: entity.position,

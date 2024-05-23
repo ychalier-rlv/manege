@@ -1,75 +1,52 @@
+//% blockNamespace="manege"
+class Entity {
+
+    id: number
+    //% blockCombine block="couleur"
+    color: number
+    //% blockCombine block="accélération"
+    acceleration: number
+    //% blockCombine block="vitesse"
+    speed: number
+    //% blockCombine block="position"
+    position: number
+    //% blockCombine block="taille"
+    width: number
+    //% blockCombine block="opacité"
+    opacity: number
+    //% blockCombine block="couche"
+    zindex: number
+
+    constructor(id: number, color: number = 0, position: number = 0) {
+        this.id = id;
+        this.color = color;
+        this.position = position;
+        this.speed = 0;
+        this.acceleration = 0;
+        this.width = 1;
+        this.opacity = 1;
+        this.zindex = 0;
+    }
+
+    collidesWith(other: Entity): boolean {
+        if (this.position < other.position) {
+            return this.position + 0.5 * this.width >= other.position - 0.5 * other.width;
+        } else {
+            return this.position - 0.5 * this.width <= other.position + 0.5 * other.width;
+        }
+    }
+
+    updateMotion(seconds: number) {
+        this.speed += this.acceleration * seconds;
+        this.position += this.speed * seconds;
+    }
+
+}
+
+
 namespace manege {
 
     enum BoundsMode { Clip, Wrap };
-
-    export class Entity {
-
-        id: number
-        //% blockCombine block="couleur"
-        color: number
-        //% blockCombine block="accélération"
-        acceleration: number
-        //% blockCombine block="vitesse"
-        speed: number
-        //% blockCombine block="position"
-        position: number
-        //% blockCombine block="taille"
-        width: number
-        //% blockCombine block="opacité"
-        opacity: number
-        //% blockCombine block="hauteur"
-        zindex: number
-        boundsMode: number
-
-        constructor(id: number, color: number = 0, position: number = 0) {
-            this.id = id;
-            this.color = color;
-            this.position = position;
-            this.speed = 0;
-            this.acceleration = 0;
-            this.width = 1;
-            this.opacity = 1;
-            this.zindex = 0;
-            this.boundsMode = BoundsMode.Wrap;
-        }
-
-        collidesWith(other: Entity): boolean {
-            if (this.position < other.position) {
-                return this.position + 0.5 * this.width >= other.position - 0.5 * other.width;
-            } else {
-                return this.position - 0.5 * this.width <= other.position + 0.5 * other.width;
-            }
-        }
-
-        setMotion(position: number, speed: number = 0, acceleration: number = 0) {
-            this.position = position;
-            this.speed = speed;
-            this.acceleration = acceleration;
-        }
-
-        //% block="bouger $this de $seconds secondes"
-        //% this.defl=joueur
-        //% this.shadow=variables_get
-        updateMotion(seconds: number) {
-            this.speed += this.acceleration * seconds;
-            this.position += this.speed * seconds;
-        }
-
-    }
-
-    function alphaCompose(backgroundColor: number, foregroundColor: number, alpha: number): number {
-        let bgRed = (backgroundColor >> 16) & 0xFF;
-        let bgGreen = (backgroundColor >> 8) & 0xFF;
-        let bgBlue = backgroundColor & 0xFF;
-        let fgRed = (foregroundColor >> 16) & 0xFF;
-        let fgGreen = (foregroundColor >> 8) & 0xFF;
-        let fgBlue = foregroundColor & 0xFF;
-        return neopixel.rgb(
-            (1 - alpha) * bgRed + alpha * fgRed,
-            (1 - alpha) * bgGreen + alpha * fgGreen,
-            (1 - alpha) * bgBlue + alpha * fgBlue
-        );
-    }
 
     class CollisionSet {
 
@@ -165,12 +142,6 @@ namespace manege {
         duration: number,
     }
 
-    type Timeout = {
-        id: number;
-        endTime: number;
-        callback: () => void;
-    }
-
     export enum AnimationType {
         //% block="gigoter"
         Wiggle,
@@ -197,6 +168,7 @@ namespace manege {
     let pauseTime: number = 0
     let resumeTime: number = 0
     let updateTime: number = 0
+    let deltaTimeSeconds: number = 0
     let entities: Entity[] = []
     let entityCounter: number = 0
     let boundsMode: number = BoundsMode.Wrap
@@ -204,8 +176,6 @@ namespace manege {
     let onCollisionStart: (a: Entity, b: Entity) => void = (a: Entity, b: Entity) => { }
     let onCollisionEnd: (a: Entity, b: Entity) => void = (a: Entity, b: Entity) => { }
     let onLongCollision: (a: Entity, b: Entity) => void = (a: Entity, b: Entity) => { }
-    let timeouts: Timeout[] = []
-    let timeoutCounter: number = 0
     let animations: Animation[] = []
     let longCollisionDuration = 1000;
 
@@ -300,67 +270,23 @@ namespace manege {
         }
     }
 
-    function setTimeout(duration: number, callback: () => void): number {
-        timeouts.push({
-            id: timeoutCounter,
-            endTime: ingameTime + duration,
-            callback: callback
-        });
-        timeoutCounter++;
-        return timeouts[timeouts.length - 1].id;
-    }
-
-    //% block="créer un minuteur dans $duration ms"
-    export function setTimeoutStatement(duration: number, callback: () => void) {
-        setTimeout(duration, callback);
-    }
-
-    function getTimeoutIndex(timeoutId: number): number {
-        for (let i = 0; i < timeouts.length; i++) {
-            if (timeouts[i].id == timeoutId) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    export function clearTimeout(timeoutId: number) {
-        let i = getTimeoutIndex(timeoutId);
-        if (i >= 0) {
-            timeouts.splice(i, 1);
-        }
-    }
-
-    function updateTimeouts() {
-        let i = 0;
-        while (i < timeouts.length) {
-            if (ingameTime >= timeouts[i].endTime) {
-                timeouts[i].callback();
-                timeouts.splice(i, 1);
-            } else {
-                i++;
-            }
-        }
-    }
-
-    //% block="temps écoulé depuis la dernière mise-à-jour"
-    export function updateTimes(): number {
+    //% block="mettre à jour l'horloge"
+    export function updateTimes() {
         let currentTime = input.runningTime();
         let dt = 0;
         if (running) {
             dt = currentTime - updateTime;
         }
         ingameTime += dt;
-        let seconds = dt / 1000;
+        deltaTimeSeconds = dt / 1000;
         updateTime = currentTime;
-        updateTimeouts();
-        return seconds;
     }
 
     //% block="mettre à jour les entités"
     export function updateEntities() {
         updateAnimations();
         for (const entity of entities) {
+            entity.updateMotion(deltaTimeSeconds);
             entity.opacity = Math.max(0, Math.min(1, entity.opacity));
             switch (boundsMode) {
                 case BoundsMode.Clip:
@@ -378,7 +304,7 @@ namespace manege {
         updateCollisions();
     }
 
-    //% block="ajouter une entité de couleur $color à $position"
+    //% block="ajouter une entité de couleur $color à la position $position"
     //% blockSetVariable=joueur
     //% color.shadow=colorNumberPicker
     export function createEntity(color: number = 0, position: number = 0): Entity {
@@ -406,10 +332,20 @@ namespace manege {
         }
     }
 
-    /**
-     * Computes the LED colors given the current entities.
-     * @returns array of RGB colors
-     */
+    function alphaCompose(backgroundColor: number, foregroundColor: number, alpha: number): number {
+        let bgRed = (backgroundColor >> 16) & 0xFF;
+        let bgGreen = (backgroundColor >> 8) & 0xFF;
+        let bgBlue = backgroundColor & 0xFF;
+        let fgRed = (foregroundColor >> 16) & 0xFF;
+        let fgGreen = (foregroundColor >> 8) & 0xFF;
+        let fgBlue = foregroundColor & 0xFF;
+        return neopixel.rgb(
+            (1 - alpha) * bgRed + alpha * fgRed,
+            (1 - alpha) * bgGreen + alpha * fgGreen,
+            (1 - alpha) * bgBlue + alpha * fgBlue
+        );
+    }
+
     function getColors(): number[] {
         entities.sort((a, b) => a.zindex - b.zindex);
         let rgbs = [];
@@ -419,9 +355,17 @@ namespace manege {
             alphas.push(1);
         }
         for (const entity of entities) {
-            let start = Math.floor(entity.position - 0.5 * entity.width);
-            let end = Math.floor(entity.position + 0.5 * entity.width);
+
+            // Adding 0.5 to be at the center of the cell
+            let x = entity.position + 0.5;
+
+            let start = Math.floor(x - 0.5 * entity.width);
+            let end = Math.floor(x + 0.5 * entity.width);
+
             for (let i = start; i <= end; i++) {
+                if (boundsMode == BoundsMode.Clip && (i < 0 || i >= size)) {
+                    continue;
+                }
                 let j = i;
                 if (i < 0) {
                     j = i + size;
@@ -430,9 +374,9 @@ namespace manege {
                 }
                 let alpha = entity.opacity;
                 if (i == start) {
-                    alpha *= 1 - (entity.position - 0.5 * entity.width - start);
+                    alpha *= 1 - (x - 0.5 * entity.width - start);
                 } else if (i == end) {
-                    alpha *= entity.position + 0.5 * entity.width - end;
+                    alpha *= x + 0.5 * entity.width - end;
                 }
                 if (alpha == 1) {
                     rgbs[j] = entity.color;
@@ -440,6 +384,7 @@ namespace manege {
                     rgbs[j] = alphaCompose(rgbs[j], entity.color, alpha);
                 }
             }
+            
         }
         return rgbs;
     }

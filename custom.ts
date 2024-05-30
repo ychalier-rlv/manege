@@ -16,6 +16,8 @@ class Entity {
     opacity: number
     //% blockCombine block="couche"
     zindex: number
+    //% blockCombine block="caché"
+    hidden: boolean
 
     constructor(id: number, color: number = 0, position: number = 0) {
         this.id = id;
@@ -26,9 +28,13 @@ class Entity {
         this.width = 1;
         this.opacity = 1;
         this.zindex = 0;
+        this.hidden = false;
     }
 
     collidesWith(other: Entity): boolean {
+        if (this.hidden || other.hidden) {
+            return false;
+        }
         if (this.position < other.position) {
             return this.position + 0.5 * this.width >= other.position - 0.5 * other.width;
         } else {
@@ -358,6 +364,10 @@ namespace manege {
         }
         for (const entity of entities) {
 
+            if (entity.hidden) {
+                continue;
+            }
+
             // Adding 0.5 to be at the center of the cell
             let x = entity.position + 0.5;
 
@@ -465,6 +475,18 @@ namespace manege {
     //% advanced=true
     export function setLongCollisionDuration(duration: number = 1000) {
         longCollisionDuration = duration;
+    }
+
+    //% block="secondes écoulées depuis le début du jeu"
+    //% advanced=true
+    export function getIngameTime() : number {
+        return ingameTime / 1000;
+    }
+
+    //% block="secondes écoulées depuis la dernière mise à jour"
+    //% advanced=true
+    export function getDeltaTime() : number {
+        return deltaTimeSeconds;
     }
 
     function noise(phase: number = 0, min: number = -1, max: number = 1, freq: number = 1): number {

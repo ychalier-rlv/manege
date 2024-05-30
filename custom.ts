@@ -244,6 +244,11 @@ namespace manege {
         running = true;
     }
 
+    //% block="le jeu est en pause"
+    export function isGamePaused() : boolean {
+        return !running;
+    }
+
     //% block="mettre à jour l'horloge"
     export function updateTimes() {
         let currentTime = input.runningTime();

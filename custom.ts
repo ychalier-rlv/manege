@@ -179,9 +179,32 @@ namespace manege {
     let animations: Animation[] = []
     let longCollisionDuration = 1000;
 
-    //% block="régler la durée d'une collision longue à (ms) $duration"
-    export function setLongCollisionDuration(duration: number) {
-        longCollisionDuration = duration;
+    //% block="ajouter une entité de couleur $color à la position $position"
+    //% blockSetVariable=joueur
+    //% color.shadow=colorNumberPicker
+    export function createEntity(color: number = 0, position: number = 0): Entity {
+        let entity = new Entity(entityCounter, color, position);
+        entities.push(entity);
+        entityCounter++;
+        return entity;
+    }
+
+    function getEntityIndex(entityId: number): number {
+        for (let i = 0; i < entities.length; i++) {
+            if (entities[i].id == entityId) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    //% block="supprimer l'entité $entity"
+    //% entity.shadow=variables_get
+    export function removeEntity(entity: Entity): void {
+        let i = getEntityIndex(entity.id);
+        if (i >= 0) {
+            entities.splice(i, 1);
+        }
     }
 
     //% block="démarrer le jeu"
@@ -207,12 +230,6 @@ namespace manege {
         running = false;
     }
 
-    //% block="démarrer le jeu en pause"
-    export function startInPause() {
-        startGame()
-        pauseGame()
-    }
-
     //% block="reprendre le jeu"
     export function resume() {
         let currentTime = input.runningTime();
@@ -221,22 +238,47 @@ namespace manege {
         running = true;
     }
 
-    //% block="lorsqu'une collision se produit entre $a et $b"
-    //% draggableParameters="reporter"
-    export function setOnCollisionStart(handler: (a: Entity, b: Entity) => void) {
-        onCollisionStart = handler;
+    //% block="mettre à jour l'horloge"
+    export function updateTimes() {
+        let currentTime = input.runningTime();
+        let dt = 0;
+        if (running) {
+            dt = currentTime - updateTime;
+        }
+        ingameTime += dt;
+        deltaTimeSeconds = dt / 1000;
+        updateTime = currentTime;
     }
 
-    //% block="lorsqu'une collision se termine entre $a et $b"
-    //% draggableParameters="reporter"
-    export function setOnCollisionEnd(handler: (a: Entity, b: Entity) => void) {
-        onCollisionEnd = handler;
-    }
-
-    //% block="lorsque $a et $b se touchent depuis longtemps"
-    //% draggableParameters="reporter"
-    export function setOnLongCollision(handler: (a: Entity, b: Entity) => void) {
-        onLongCollision = handler;
+    function updateAnimations() {
+        let i = 0;
+        while (i < animations.length) {
+            const animation = animations[i];
+            const progress = Math.min(1, (ingameTime - animation.timeStart) / animation.duration);
+            if (progress < 0) {
+                i++;
+                continue;
+            }
+            switch (animation.animationType) {
+                case AnimationType.Wiggle:
+                    animation.entity.position = animation.startPosition + animation.amplitude * Math.sin(4 * Math.PI * progress);
+                    break;
+                case AnimationType.Grow:
+                    animation.entity.width = animation.startWidth + animation.amplitude * (1 - Math.cos(4 * Math.PI * progress)) / 2;
+                    break;
+                case AnimationType.Blink:
+                    animation.entity.opacity = animation.startOpacity * (Math.cos(4 * Math.PI * progress) + 1) / 2;
+                    break;
+            }
+            if (progress >= 1) {
+                animation.entity.position = animation.startPosition;
+                animation.entity.width = animation.startWidth;
+                animation.entity.opacity = animation.startOpacity;
+                animations.splice(i, 1);
+            } else {
+                i++;
+            }
+        }
     }
 
     function updateCollisions() {
@@ -270,19 +312,7 @@ namespace manege {
         }
     }
 
-    //% block="mettre à jour l'horloge"
-    export function updateTimes() {
-        let currentTime = input.runningTime();
-        let dt = 0;
-        if (running) {
-            dt = currentTime - updateTime;
-        }
-        ingameTime += dt;
-        deltaTimeSeconds = dt / 1000;
-        updateTime = currentTime;
-    }
-
-    //% block="mettre à jour les entités"
+    //% block="mettre à jour les entités (animations, collisions)"
     export function updateEntities() {
         updateAnimations();
         for (const entity of entities) {
@@ -302,34 +332,6 @@ namespace manege {
             }
         }
         updateCollisions();
-    }
-
-    //% block="ajouter une entité de couleur $color à la position $position"
-    //% blockSetVariable=joueur
-    //% color.shadow=colorNumberPicker
-    export function createEntity(color: number = 0, position: number = 0): Entity {
-        let entity = new Entity(entityCounter, color, position);
-        entities.push(entity);
-        entityCounter++;
-        return entity;
-    }
-
-    function getEntityIndex(entityId: number): number {
-        for (let i = 0; i < entities.length; i++) {
-            if (entities[i].id == entityId) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    //% block="supprimer l'entité $entity"
-    //% entity.shadow=variables_get
-    export function removeEntity(entity: Entity): void {
-        let i = getEntityIndex(entity.id);
-        if (i >= 0) {
-            entities.splice(i, 1);
-        }
     }
 
     function alphaCompose(backgroundColor: number, foregroundColor: number, alpha: number): number {
@@ -399,25 +401,22 @@ namespace manege {
         strip.show();
     }
 
-    function noise(phase: number = 0, min: number = -1, max: number = 1, freq: number = 1): number {
-        let x = freq * ingameTime / 1000 + phase;
-        let y = (Math.sin(0.2 * x) + Math.sin(0.314159 * x));
-        return (y + 2) / 4 * (max - min) + min;
+    //% block="lorsqu'une collision se produit entre $a et $b"
+    //% draggableParameters="reporter"
+    export function setOnCollisionStart(handler: (a: Entity, b: Entity) => void) {
+        onCollisionStart = handler;
     }
 
-    //% block="bruit A entre $min et $max || de fréquence $freq"
-    export function noiseA(min: number = -1, max: number = 1, freq: number = 1): number {
-        return noise(0, min, max, freq);
+    //% block="lorsqu'une collision se termine entre $a et $b"
+    //% draggableParameters="reporter"
+    export function setOnCollisionEnd(handler: (a: Entity, b: Entity) => void) {
+        onCollisionEnd = handler;
     }
 
-    //% block="bruit B entre $min et $max || de fréquence $freq"
-    export function noiseB(min: number = -1, max: number = 1, freq: number = 1): number {
-        return noise(3600, min, max, freq);
-    }
-
-    //% block="bruit C entre $min et $max || de fréquence $freq"
-    export function noiseC(min: number = -1, max: number = 1, freq: number = 1): number {
-        return noise(7200, min, max, freq);
+    //% block="lorsque $a et $b se touchent depuis longtemps"
+    //% draggableParameters="reporter"
+    export function setOnLongCollision(handler: (a: Entity, b: Entity) => void) {
+        onLongCollision = handler;
     }
 
     //% block="les entités $a1 et $a2 sont $b1 et $b2"
@@ -432,8 +431,69 @@ namespace manege {
         return (a1.id == b1.id && a2.id == b2.id) || (a1.id == b2.id && a2.id == b1.id);
     }
 
+    //% block="faire $animationType l'entité $entity pendant (ms) $duration || d'amplitude $amplitude et après un délais de (ms) $delay"
+    //% expandableArgumentMode="toggle"
+    //% entity.shadow=variables_get
+    //% animationType.defl=AnimationType.Wiggle
+    //% amplitude.defl=1
+    //% duration.defl=1000
+    //% duration.shadow=timePicker
+    //% inlineInputMode=inline
+    export function animateEntity(entity: Entity, animationType: AnimationType = AnimationType.Grow, duration: number = 1000, amplitude: number = 1, delay: number = 0) {
+        animations.push({
+            entity: entity,
+            animationType: animationType,
+            timeStart: ingameTime + delay,
+            duration: duration,
+            amplitude: amplitude,
+            startPosition: entity.position,
+            startWidth: entity.width,
+            startOpacity: entity.opacity,
+        });
+    }
+
+    //% block="régler la taille du jeu à $newSize"
+    //% newSize.defl=30
+    //% advanced=true
+    export function setSize(newSize: number = 30) {
+        size = newSize;
+    }
+
+    //% block="régler la durée d'une collision longue à (ms) $duration"
+    //% duration.defl=1000
+    //% duration.shadow=timePicker
+    //% advanced=true
+    export function setLongCollisionDuration(duration: number = 1000) {
+        longCollisionDuration = duration;
+    }
+
+    function noise(phase: number = 0, min: number = -1, max: number = 1, freq: number = 1): number {
+        let x = freq * ingameTime / 1000 + phase;
+        let y = (Math.sin(0.2 * x) + Math.sin(0.314159 * x));
+        return (y + 2) / 4 * (max - min) + min;
+    }
+
+    //% block="bruit A entre $min et $max || de fréquence $freq"
+    //% advanced=true
+    export function noiseA(min: number = -1, max: number = 1, freq: number = 1): number {
+        return noise(0, min, max, freq);
+    }
+
+    //% block="bruit B entre $min et $max || de fréquence $freq"
+    //% advanced=true
+    export function noiseB(min: number = -1, max: number = 1, freq: number = 1): number {
+        return noise(3600, min, max, freq);
+    }
+
+    //% block="bruit C entre $min et $max || de fréquence $freq"
+    //% advanced=true
+    export function noiseC(min: number = -1, max: number = 1, freq: number = 1): number {
+        return noise(7200, min, max, freq);
+    }
+
     //% block="choisir une position libre au hasard || de taille $spotSize"
     //% spotSize.defl=1
+    //% advanced=true
     export function getRandomFreePosition(spotSize: number = 1): number {
         const margin = spotSize / 2;
         const intervals: number[][] = [[0, size]];
@@ -495,55 +555,6 @@ namespace manege {
             upperBound += widths[k];
         }
         return 0;
-    }
-
-    function updateAnimations() {
-        let i = 0;
-        while (i < animations.length) {
-            const animation = animations[i];
-            const progress = Math.min(1, (ingameTime - animation.timeStart) / animation.duration);
-            if (progress < 0) {
-                i++;
-                continue;
-            }
-            switch (animation.animationType) {
-                case AnimationType.Wiggle:
-                    animation.entity.position = animation.startPosition + animation.amplitude * Math.sin(4 * Math.PI * progress);
-                    break;
-                case AnimationType.Grow:
-                    animation.entity.width = animation.startWidth + animation.amplitude * (1 - Math.cos(4 * Math.PI * progress)) / 2;
-                    break;
-                case AnimationType.Blink:
-                    animation.entity.opacity = animation.startOpacity * (Math.cos(4 * Math.PI * progress) + 1) / 2;
-                    break;
-            }
-            if (progress >= 1) {
-                animation.entity.position = animation.startPosition;
-                animation.entity.width = animation.startWidth;
-                animation.entity.opacity = animation.startOpacity;
-                animations.splice(i, 1);
-            } else {
-                i++;
-            }
-        }
-    }
-
-    //% block="faire $animationType l'entité $entity pendant $duration || d'amplitude $amplitude et après un délais de (ms) $delay"
-    //% expandableArgumentMode="toggle"
-    //% animationType.defl=AnimationType.Wiggle
-    //% amplitude.defl=1
-    //% duration.defl=1000
-    export function animateEntity(entity: Entity, animationType: AnimationType = AnimationType.Grow, duration: number = 1000, amplitude: number = 1, delay: number = 0) {
-        animations.push({
-            entity: entity,
-            animationType: animationType,
-            timeStart: ingameTime + delay,
-            duration: duration,
-            amplitude: amplitude,
-            startPosition: entity.position,
-            startWidth: entity.width,
-            startOpacity: entity.opacity,
-        });
     }
 
 }
